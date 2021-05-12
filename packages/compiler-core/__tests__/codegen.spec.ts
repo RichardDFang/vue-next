@@ -20,7 +20,8 @@ import {
   IfConditionalExpression,
   createVNodeCall,
   VNodeCall,
-  DirectiveArguments
+  DirectiveArguments,
+  ConstantTypes
 } from '../src'
 import {
   CREATE_VNODE,
@@ -68,11 +69,11 @@ describe('compiler: codegen', () => {
     expect(code).toMatchSnapshot()
   })
 
-  test('module mode preamble w/ optimizeBindings: true', () => {
+  test('module mode preamble w/ optimizeImports: true', () => {
     const root = createRoot({
       helpers: [CREATE_VNODE, RESOLVE_DIRECTIVE]
     })
-    const { code } = generate(root, { mode: 'module', optimizeBindings: true })
+    const { code } = generate(root, { mode: 'module', optimizeImports: true })
     expect(code).toMatch(
       `import { ${helperNameMap[CREATE_VNODE]}, ${
         helperNameMap[RESOLVE_DIRECTIVE]
@@ -125,7 +126,7 @@ describe('compiler: codegen', () => {
 
   test('assets + temps', () => {
     const root = createRoot({
-      components: [`Foo`, `bar-baz`, `barbaz`],
+      components: [`Foo`, `bar-baz`, `barbaz`, `Qux__self`],
       directives: [`my_dir_0`, `my_dir_1`],
       temps: 3
     })
@@ -142,6 +143,12 @@ describe('compiler: codegen', () => {
       `const _component_barbaz = _${
         helperNameMap[RESOLVE_COMPONENT]
       }("barbaz")\n`
+    )
+    // implicit self reference from SFC filename
+    expect(code).toMatch(
+      `const _component_Qux = _${
+        helperNameMap[RESOLVE_COMPONENT]
+      }("Qux", true)\n`
     )
     expect(code).toMatch(
       `const _directive_my_dir_0 = _${
@@ -304,7 +311,12 @@ describe('compiler: codegen', () => {
         codegenNode: {
           type: NodeTypes.FOR,
           loc: locStub,
-          source: createSimpleExpression('1 + 2', false, locStub, true),
+          source: createSimpleExpression(
+            '1 + 2',
+            false,
+            locStub,
+            ConstantTypes.CAN_STRINGIFY
+          ),
           valueAlias: undefined,
           keyAlias: undefined,
           objectIndexAlias: undefined,
